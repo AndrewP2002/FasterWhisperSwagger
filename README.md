@@ -1,7 +1,7 @@
 A casual project for transcribtion of audio/video files using FasterWhisper-XXL and ollama for the server side
 and using swagger and ngrok for the client side.
 
-If you want to use just go to https://guidebooky-epinastic-gita.ngrok-free.dev/docs (whenever the server is on)
+If you want to use just go to the provided link (whenever the server is on)
 use the upload function(up to 100 Mb) and upload an audio/video file then either select your prefered language you want to translate it to
 or just set the translation as false. 
 Afterwards, if you selected false you will only get the original subtitles of the video/audio file and if you selected true

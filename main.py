@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import zipfile
+import re
 
 from enum import Enum
 from typing import Optional
@@ -32,7 +33,7 @@ def run_transcribtion_processing(file_name:str, language: Optional[str], transla
     script_directory = os.path.dirname(script_path)
 
     #variables to for better readability
-    file_path = os.path.join(UPLOAD_DIR, file_name)
+    file_path = os.path.join(script_directory, "uploaded_media/" + file_name)
     whisper_folder = os.path.join(script_directory,"Faster-Whisper-XXL")
     whisper_file = os.path.join(whisper_folder, "faster-whisper-xxl.exe")
 
@@ -63,9 +64,10 @@ async def process_media(
             status_code=400, 
             detail="You must select a target language if translation is enabled."
         )
-    
-    #saving the file in the output_dir
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    #cleaning the file name from illegal symbols
+    clean_name = re.sub(r'[^\w\d.]', '_', file.filename)
+    #saving the file in the output_dir with the cleaned name
+    file_path = os.path.join(UPLOAD_DIR, clean_name)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -75,7 +77,7 @@ async def process_media(
     #background task for the transcription/translation
     background_tasks.add_task(
         run_transcribtion_processing,
-        file.filename,
+        clean_name,
         target_language.value if target_language else None,
         needs_translation
     )
@@ -99,11 +101,12 @@ async def download_subtitles(
     background_tasks: BackgroundTasks
     ):
 
+    #clean the filename from illegal symbols
+    clean_name = re.sub(r'[^\w\d.]', '_', filename)
     #variables for all the files
-    base_name = os.path.splitext(filename)[0]
+    base_name = os.path.splitext(clean_name)[0]
     srt_original = os.path.join(UPLOAD_DIR, f"{base_name}.srt")
     srt_translated = os.path.join(UPLOAD_DIR, f"{base_name}_translated.srt")
-    print(f"{base_name} {srt_original} {srt_translated}")
 
     #check whether files exist
     if not os.path.exists(srt_original) or not os.path.exists(srt_translated):
@@ -115,17 +118,17 @@ async def download_subtitles(
     #create an inmemory zip file to hold both srts
     io_buffer = BytesIO()
     with zipfile.ZipFile(io_buffer, "w") as zip_file:
-        zip_file.write(srt_original, arcname=f"{base_name}_original.srt")
-        zip_file.write(srt_translated, arcname=f"{base_name}_translated.srt")
+        zip_file.write(srt_original, arcname=f"{filename}.srt")
+        zip_file.write(srt_translated, arcname=f"{filename}_translated.srt")
     io_buffer.seek(0)
 
     #create background tasks to dele the files after they have been downloaded
-    background_tasks.add_task(remove_file, os.path.join(UPLOAD_DIR, filename))
+    background_tasks.add_task(remove_file, os.path.join(UPLOAD_DIR, clean_name))
     background_tasks.add_task(remove_file, srt_original)
     background_tasks.add_task(remove_file, srt_translated)
     
     return StreamingResponse(
         io_buffer, 
         media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": f"attachment; filename={base_name}_subtitles.zip"}
+        headers={"Content-Disposition": f"attachment; filename={filename}_subtitles.zip"}
     )
