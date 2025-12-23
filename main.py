@@ -26,7 +26,11 @@ class LanguageOptions(str, Enum):
 UPLOAD_DIR = "uploaded_media"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+#an array to store all the messages in
+message_log = []
+
 def run_transcribtion_processing(file_name:str, language: Optional[str], translate:bool):
+    message_log.append(f"Background transcribtion started for {file_name}")
     print(f"Background transcribtion started for {file_name}")
         #starting transcribtion
     script_path = os.path.abspath(__file__)
@@ -45,8 +49,10 @@ def run_transcribtion_processing(file_name:str, language: Optional[str], transla
     #ollama translation
     if translate:
         print(f"Begining translation to {language}")
+        message_log.append(f"Begining translation to {language}")
         translate_srt(srt_original, language)
     print(f"Background transcribtion ended for {file_name}")
+    message_log.append(f"Background transcribtion ended for {file_name}")
 
 #file upload endpoint
 @app.post("/upload")
@@ -68,6 +74,13 @@ async def process_media(
     clean_name = re.sub(r'[^\w\d.]', '_', file.filename)
     #saving the file in the output_dir with the cleaned name
     file_path = os.path.join(UPLOAD_DIR, clean_name)
+    if os.path.exists(file_path):
+        return {
+        "filename": file.filename,
+        "translation_active": needs_translation,
+        "language": target_language if needs_translation else "None",
+        "status": f"{file.filename} has already been uploaded!"
+        }
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -88,6 +101,11 @@ async def process_media(
         "language": target_language if needs_translation else "None",
         "status": response_msg
     }
+
+#system messages to better show the process to the user
+@app.get("/system-messages")
+async def get_messages():
+    return {"Messages": message_log[::-1][:10]}
 
 #function to delete files
 def remove_file(path: str):
