@@ -1,4 +1,4 @@
-A casual project for transcribtion of audio/video files using FasterWhisper-XXL and ollama for the server side
+A casual project for transcription of audio/video files using FasterWhisper-XXL and ollama for the server side
 and using swagger and ngrok for the client side.
 
 
