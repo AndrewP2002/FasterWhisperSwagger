@@ -65,6 +65,20 @@ def run_transcribtion_processing(file_name:str, language: Optional[str], transla
         translate_srt(srt_original, language)
     print(f"Background transcribtion ended for {file_name}")
 
+def create_zip_file(file_name, clean_name, needs_translation,):
+    #variables for all the files
+    base_name = os.path.splitext(clean_name)[0]
+    srt_original = os.path.join(UPLOAD_DIR, f"{base_name}.srt")
+    if needs_translation: 
+        srt_translated = os.path.join(UPLOAD_DIR, f"{base_name}_translated.srt")
+    io_buffer = BytesIO()
+    with zipfile.ZipFile(io_buffer, "w") as zip_file:
+        zip_file.write(srt_original, arcname=f"{file_name}.srt")
+        if needs_translation: 
+            zip_file.write(srt_translated, arcname=f"{file_name}_translated.srt")
+    io_buffer.seek(0)
+    return io_buffer
+
 #file upload endpoint
 @app.post("/upload")
 async def process_media(
@@ -86,34 +100,20 @@ async def process_media(
     #saving the file in the output_dir with the cleaned name
     file_path = os.path.join(UPLOAD_DIR, clean_name)
     if os.path.exists(file_path):
-        return {
-        "filename": file.filename,
-        "translation_active": needs_translation,
-        "language": target_language if needs_translation else "None",
-        "status": f"{file.filename} has already been uploaded!"
-        }
+        return StreamingResponse(
+        create_zip_file(file.filename,clean_name, needs_translation), 
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": f"attachment; filename={file.filename}_subtitles.zip"}
+        )  
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     #starting the translation process
     run_transcribtion_processing(clean_name, target_language.value if target_language else None, needs_translation)
 
-    #variables for all the files
-    base_name = os.path.splitext(clean_name)[0]
-    srt_original = os.path.join(UPLOAD_DIR, f"{base_name}.srt")
-    if needs_translation: 
-        srt_translated = os.path.join(UPLOAD_DIR, f"{base_name}_translated.srt")
-
-    #create an inmemory zip file to hold both srts
-    io_buffer = BytesIO()
-    with zipfile.ZipFile(io_buffer, "w") as zip_file:
-        zip_file.write(srt_original, arcname=f"{file.filename}.srt")
-        if needs_translation: 
-            zip_file.write(srt_translated, arcname=f"{file.filename}_translated.srt")
-    io_buffer.seek(0)
-
+    #response with the created zip file
     return StreamingResponse(
-        io_buffer, 
+        create_zip_file(file.filename,clean_name, needs_translation), 
         media_type="application/x-zip-compressed",
         headers={"Content-Disposition": f"attachment; filename={file.filename}_subtitles.zip"}
     )  

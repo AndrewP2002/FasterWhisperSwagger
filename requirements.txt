@@ -1,0 +1,15 @@
+If you want to run this as a server you will need:
+
+Faster whisper XXL in your main directory
+(i prefer this one because it is better tuned and easier to use)
+https://github.com/Purfview/whisper-standalone-win/blob/main/README.md
+download it and run it once with the medium model to download it
+
+ollama running on your pc
+just download it and let it run
+then in your CMD use command "ollama run llama3.1:8b"
+to download the model used in this project
+
+Lastly download all the required libraries that are needed in this project
+
+Enjoy!
